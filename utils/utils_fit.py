@@ -9,7 +9,7 @@ from utils.utils import get_lr
 from utils.utils_metrics import f_score
 
 
-def fit_one_epoch(model_train, model, loss_history, eval_callback, optimizer, epoch, epoch_step, epoch_step_val, gen, gen_val, Epoch, cuda, dice_loss, focal_loss, cls_weights, num_classes, \
+def fit_one_epoch(outM,model_train, model, loss_history, eval_callback, optimizer, epoch, epoch_step, epoch_step_val, gen, gen_val, Epoch, cuda, dice_loss, focal_loss, cls_weights, num_classes, \
     fp16, scaler, save_period, save_dir, local_rank=0):
     total_loss      = 0
     total_f_score   = 0
@@ -41,7 +41,7 @@ def fit_one_epoch(model_train, model, loss_history, eval_callback, optimizer, ep
             #----------------------#
             #   前向传播
             #----------------------#
-            outputs = model_train(imgs)
+            outputs,outM = model_train(imgs,outM)
             #----------------------#
             #   计算损失
             #----------------------#
@@ -128,7 +128,7 @@ def fit_one_epoch(model_train, model, loss_history, eval_callback, optimizer, ep
             #----------------------#
             #   前向传播
             #----------------------#
-            outputs     = model_train(imgs)
+            outputs,outM     = model_train(imgs,outM)
             #----------------------#
             #   计算损失
             #----------------------#

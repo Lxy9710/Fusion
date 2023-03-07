@@ -123,15 +123,15 @@ class EvalCallback():
         with torch.no_grad():
             images = torch.from_numpy(image_data)
             if self.cuda:
-                images = images.cuda()
-                
+                images = images.cuda()    
             #---------------------------------------------------#
             #   图片传入网络进行预测
             #---------------------------------------------------#
-            pr = self.net(images)[0]
+            pr= self.net(images,torch.zeros([320,14,14]))[0]
             #---------------------------------------------------#
             #   取出每一个像素点的种类
             #---------------------------------------------------#
+            pr=torch.squeeze(pr)
             pr = F.softmax(pr.permute(1,2,0),dim = -1).cpu().numpy()
             #--------------------------------------#
             #   将灰条部分截取掉

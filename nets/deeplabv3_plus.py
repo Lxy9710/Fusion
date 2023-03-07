@@ -112,6 +112,22 @@ class ASPP(nn.Module):
 		feature_cat = torch.cat([conv1x1, conv3x3_1, conv3x3_2, conv3x3_3, global_feature], dim=1)
 		result = self.conv_cat(feature_cat)
 		return result
+# class ReshapeOut(nn.Module):
+#     def __init__(self) -> None:
+#         super(ReshapeOut,self).__init__()
+#         self.conv1=nn.Conv2d(320, 3, 1, 1)
+#     def forward(self,x):
+#         x=self.conv1(x)
+#         return x
+
+# def MOut(input,out):
+#     net=ReshapeOut()
+#     net=net.to('cuda')
+#     #if not cuda change here
+#     input = input.cuda()
+#     out=net(input)
+#     out=Resize([224,224])(out)    
+#     return out
 
 class DeepLab(nn.Module):
     def __init__(self, num_classes, backbone="mobilenet", pretrained=True, downsample_factor=16):
@@ -166,17 +182,35 @@ class DeepLab(nn.Module):
         )
         self.cls_conv = nn.Conv2d(256, num_classes, 1, stride=1)
 
-    def forward(self, x):
+
+    def forward(self, x,outM):
         H, W = x.size(2), x.size(3)
         #-----------------------------------------#
         #   获得两个特征层
         #   low_level_features: 浅层特征-进行卷积处理
         #   x : 主干部分-利用ASPP结构进行加强特征提取
         #-----------------------------------------#
+        # print(low_level_features.shape)
+        # out1=outM
+        # low_level_features, x = self.backbone(x)
+        # outM=x.detach()
+        # x=x.add(out1)
+        # x = self.aspp(x)
+        # low_level_features = self.shortcut_conv(low_level_features)
+        # #-----------------------------------------#
+        # #   将加强特征边上采样
+        # #   与浅层特征堆叠后利用卷积进行特征提取
+        # #-----------------------------------------#
+        # x = F.interpolate(x, size=(low_level_features.size(2), low_level_features.size(3)), mode='bilinear', align_corners=True)
+        # x = self.cat_conv(torch.cat((x, low_level_features), dim=1))
+        # x = self.cls_conv(x)
+        # x = F.interpolate(x, size=(H, W), mode='bilinear', align_corners=True)
         low_level_features, x = self.backbone(x)
+        out1=outM.add(x)
+        outM=x.detach()
+        x=x.add(out1)
         x = self.aspp(x)
         low_level_features = self.shortcut_conv(low_level_features)
-        
         #-----------------------------------------#
         #   将加强特征边上采样
         #   与浅层特征堆叠后利用卷积进行特征提取
@@ -185,5 +219,5 @@ class DeepLab(nn.Module):
         x = self.cat_conv(torch.cat((x, low_level_features), dim=1))
         x = self.cls_conv(x)
         x = F.interpolate(x, size=(H, W), mode='bilinear', align_corners=True)
-        return x
+        return x,outM
 
