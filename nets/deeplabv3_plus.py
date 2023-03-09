@@ -132,9 +132,10 @@ def fusionOutM(outM):
     [Bb,Cc,Hh,Ww]=outM[0].shape
     out1=torch.zeros(Bb,Cc,Hh,Ww)
     for i in range(len(outM)):
-        out1=out1.add(outM[i])
-        print(out1.shape)
+        if i%2==0:
+            out1=out1.add(outM[i])
     return out1
+
 class DeepLab(nn.Module):
     def __init__(self, num_classes, backbone="mobilenet", pretrained=True, downsample_factor=16):
         super(DeepLab, self).__init__()
@@ -197,10 +198,11 @@ class DeepLab(nn.Module):
         #   x : 主干部分-利用ASPP结构进行加强特征提取
         #-----------------------------------------#
         #前序帧处理,outM改为了包含tensor的list
-        if len(outM)==4:#除了前三个之外的队列                    
+        if len(outM)==8:#除了前三个之外的队列                    
             low_level_features, x = self.backbone(x)
+            midx=x.detach()
             outM.pop(0)
-            outM.append(copy.deepcopy(x))
+            outM.append(copy.deepcopy(midx))
             # print(outM.shape)
             out1=fusionOutM(outM)
             # outM=outM.add(x)
@@ -209,17 +211,19 @@ class DeepLab(nn.Module):
             # x=x.to('cuda')
         elif len(outM)!=0:
             low_level_features, x = self.backbone(x)
+            midx=x.detach()
             out1=fusionOutM(outM)
-            outM.append(copy.deepcopy(x))
+            outM.append(copy.deepcopy(midx))
             # print(outM.shape)
             x=x.add(out1)
             print(x.shape)
             # x=x.to('cuda')
         else:
             low_level_features, x = self.backbone(x)
+            midx=x.detach()
             [Bb,Cc,Hh,Ww]=x.shape
             out1=torch.zeros([Bb,Cc,Hh,Ww])
-            outM.append(copy.deepcopy(x))
+            outM.append(copy.deepcopy(midx))
             # print(outM.shape)
             # print(outM)
             # x=x.to('cuda')

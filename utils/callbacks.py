@@ -15,8 +15,8 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
-from .utils import cvtColor, preprocess_input, resize_image
-from .utils_metrics import compute_mIoU
+from utils.utils import cvtColor, preprocess_input, resize_image
+from utils.utils_metrics import compute_mIoU
 
 
 class LossHistory():
@@ -128,20 +128,22 @@ class EvalCallback():
             #---------------------------------------------------#
             #   图片传入网络进行预测
             #---------------------------------------------------#
-            pr= self.net(images,outM)[0]
+            pr, outM= self.net(images,outM)[0]
             #---------------------------------------------------#
             #   取出每一个像素点的种类
             #---------------------------------------------------#
+            print(pr.shape)
             pr=torch.squeeze(pr)
             pr = F.softmax(pr.permute(1,2,0),dim = -1).cpu().numpy()
             #--------------------------------------#
             #   将灰条部分截取掉
             #--------------------------------------#
-            pr = pr[int((self.input_shape[0] - nh) // 2) : int((self.input_shape[0] - nh) // 2 + nh), \
-                    int((self.input_shape[1] - nw) // 2) : int((self.input_shape[1] - nw) // 2 + nw)]
+            pr = pr[int((self.input_shape[0] - nh) // 2) : int((self.input_shape[0] - nh) // 2 + nh), int((self.input_shape[1] - nw) // 2) : int((self.input_shape[1] - nw) // 2 + nw)]
             #---------------------------------------------------#
             #   进行图片的resize
             #---------------------------------------------------#
+            print(pr)
+            print(pr.shape)
             pr = cv2.resize(pr, (orininal_w, orininal_h), interpolation = cv2.INTER_LINEAR)
             #---------------------------------------------------#
             #   取出每一个像素点的种类
