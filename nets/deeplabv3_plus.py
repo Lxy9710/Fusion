@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from nets.xception import xception
 from nets.mobilenetv2 import mobilenetv2
-
+import copy
 class MobileNetV2(nn.Module):
     def __init__(self, downsample_factor=8, pretrained=True):
         super(MobileNetV2, self).__init__()
@@ -128,7 +128,13 @@ class ASPP(nn.Module):
 #     out=net(input)
 #     out=Resize([224,224])(out)    
 #     return out
-
+def fusionOutM(outM):
+    [Bb,Cc,Hh,Ww]=outM[0].shape
+    out1=torch.zeros(Bb,Cc,Hh,Ww)
+    for i in range(len(outM)):
+        out1=out1.add(outM[i])
+        print(out1.shape)
+    return out1
 class DeepLab(nn.Module):
     def __init__(self, num_classes, backbone="mobilenet", pretrained=True, downsample_factor=16):
         super(DeepLab, self).__init__()
@@ -190,9 +196,46 @@ class DeepLab(nn.Module):
         #   low_level_features: 浅层特征-进行卷积处理
         #   x : 主干部分-利用ASPP结构进行加强特征提取
         #-----------------------------------------#
-        # print(low_level_features.shape)
-        # out1=outM
+        #前序帧处理,outM改为了包含tensor的list
+        if len(outM)==4:#除了前三个之外的队列                    
+            low_level_features, x = self.backbone(x)
+            outM.pop(0)
+            outM.append(copy.deepcopy(x))
+            # print(outM.shape)
+            out1=fusionOutM(outM)
+            # outM=outM.add(x)
+            x=x.add(out1)
+            print(x.shape)
+            # x=x.to('cuda')
+        elif len(outM)!=0:
+            low_level_features, x = self.backbone(x)
+            out1=fusionOutM(outM)
+            outM.append(copy.deepcopy(x))
+            # print(outM.shape)
+            x=x.add(out1)
+            print(x.shape)
+            # x=x.to('cuda')
+        else:
+            low_level_features, x = self.backbone(x)
+            [Bb,Cc,Hh,Ww]=x.shape
+            out1=torch.zeros([Bb,Cc,Hh,Ww])
+            outM.append(copy.deepcopy(x))
+            # print(outM.shape)
+            # print(outM)
+            # x=x.to('cuda')
+            print(x.shape)
+        x = self.aspp(x)
+        low_level_features = self.shortcut_conv(low_level_features)
+        #-----------------------------------------#
+        #   将加强特征边上采样
+        #   与浅层特征堆叠后利用卷积进行特征提取
+        #-----------------------------------------#
+        x = F.interpolate(x, size=(low_level_features.size(2), low_level_features.size(3)), mode='bilinear', align_corners=True)
+        x = self.cat_conv(torch.cat((x, low_level_features), dim=1))
+        x = self.cls_conv(x)
+        x = F.interpolate(x, size=(H, W), mode='bilinear', align_corners=True)
         # low_level_features, x = self.backbone(x)
+        # out1=outM.add(x)
         # outM=x.detach()
         # x=x.add(out1)
         # x = self.aspp(x)
@@ -205,19 +248,5 @@ class DeepLab(nn.Module):
         # x = self.cat_conv(torch.cat((x, low_level_features), dim=1))
         # x = self.cls_conv(x)
         # x = F.interpolate(x, size=(H, W), mode='bilinear', align_corners=True)
-        low_level_features, x = self.backbone(x)
-        out1=outM.add(x)
-        outM=x.detach()
-        x=x.add(out1)
-        x = self.aspp(x)
-        low_level_features = self.shortcut_conv(low_level_features)
-        #-----------------------------------------#
-        #   将加强特征边上采样
-        #   与浅层特征堆叠后利用卷积进行特征提取
-        #-----------------------------------------#
-        x = F.interpolate(x, size=(low_level_features.size(2), low_level_features.size(3)), mode='bilinear', align_corners=True)
-        x = self.cat_conv(torch.cat((x, low_level_features), dim=1))
-        x = self.cls_conv(x)
-        x = F.interpolate(x, size=(H, W), mode='bilinear', align_corners=True)
         return x,outM
 

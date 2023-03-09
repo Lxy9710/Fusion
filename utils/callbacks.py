@@ -119,6 +119,7 @@ class EvalCallback():
         #   添加上batch_size维度
         #---------------------------------------------------------#
         image_data  = np.expand_dims(np.transpose(preprocess_input(np.array(image_data, np.float32)), (2, 0, 1)), 0)
+        outM=[]
 
         with torch.no_grad():
             images = torch.from_numpy(image_data)
@@ -127,7 +128,7 @@ class EvalCallback():
             #---------------------------------------------------#
             #   图片传入网络进行预测
             #---------------------------------------------------#
-            pr= self.net(images,torch.zeros([320,14,14]))[0]
+            pr= self.net(images,outM)[0]
             #---------------------------------------------------#
             #   取出每一个像素点的种类
             #---------------------------------------------------#
