@@ -167,3 +167,22 @@ def deeplab_dataset_collate(batch):
     pngs        = torch.from_numpy(np.array(pngs)).long()
     seg_labels  = torch.from_numpy(np.array(seg_labels)).type(torch.FloatTensor)
     return images, pngs, seg_labels
+#重新定义一下batch sampler，[1,2,3][4,5,6]-->[1,2,3][2,3,4]
+class batch_Sampler(object):
+    r"""Base class for all Samplers.
+    Every Sampler subclass has to provide an :meth:`__iter__` method, providing a
+    way to iterate over indices of dataset elements, and a :meth:`__len__` method
+    that returns the length of the returned iterators.
+    .. note:: The :meth:`__len__` method isn't strictly required by
+              :class:`~torch.utils.data.DataLoader`, but is expected in any
+              calculation involving the length of a :class:`~torch.utils.data.DataLoader`.
+    """
+
+    def __init__(self, data_source):
+        pass
+
+    def __iter__(self):
+        raise NotImplementedError
+		
+    def __len__(self):
+        return len(self.data_source)

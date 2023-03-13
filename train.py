@@ -358,8 +358,21 @@ if __name__ == "__main__":
         train_lines = f.readlines()
     with open(os.path.join(VOCdevkit_path, "VOC2007/ImageSets/Segmentation/val.txt"),"r") as f:
         val_lines = f.readlines()
-    num_train   = len(train_lines)
-    num_val     = len(val_lines)
+    n_train   = len(train_lines)
+    n_val     = len(val_lines)
+    t_line=train_lines
+    v_line=val_lines
+    train_lines=[]
+    val_lines=[]
+    for i in range(n_train-Freeze_batch_size):
+        for j in range(Freeze_batch_size):
+            train_lines.append(t_line[i+j])
+    for i in range(n_val-Freeze_batch_size):
+        for j in range(Freeze_batch_size):
+            val_lines.append(v_line[i+j])
+    num_train=len(train_lines)
+    num_val=len(val_lines)
+
 
     if local_rank == 0:
         show_config(
@@ -440,7 +453,8 @@ if __name__ == "__main__":
         if epoch_step == 0 or epoch_step_val == 0:
             raise ValueError("数据集过小，无法继续进行训练，请扩充数据集。")
 
-        train_dataset   = DeeplabDataset(train_lines, input_shape, num_classes, True, VOCdevkit_path)
+        train_dataset   = DeeplabDataset(train_lines, input_shape, num_classes, False, VOCdevkit_path)
+        #这里写false是避免随机图像增强导致时序信息被抹掉，如果需要增强可以把时序处理放在dataset构建完后，性能评估阶段就先不管
         val_dataset     = DeeplabDataset(val_lines, input_shape, num_classes, False, VOCdevkit_path)
 
         if distributed:
@@ -451,12 +465,12 @@ if __name__ == "__main__":
         else:
             train_sampler   = None
             val_sampler     = None
-            shuffle         = True
+            shuffle         = False
 
-        gen             = DataLoader(train_dataset, shuffle = shuffle, batch_size = batch_size, num_workers = num_workers, pin_memory=True,
-                                    drop_last = True, collate_fn = deeplab_dataset_collate, sampler=train_sampler)
-        gen_val         = DataLoader(val_dataset  , shuffle = shuffle, batch_size = batch_size, num_workers = num_workers, pin_memory=True, 
-                                    drop_last = True, collate_fn = deeplab_dataset_collate, sampler=val_sampler)
+        gen             = DataLoader(train_dataset, shuffle =False, batch_size = batch_size, num_workers = num_workers, pin_memory=True,
+                                    drop_last = True, collate_fn = deeplab_dataset_collate)
+        gen_val         = DataLoader(val_dataset  , shuffle = False, batch_size = batch_size, num_workers = num_workers, pin_memory=True, 
+                                    drop_last = True, collate_fn = deeplab_dataset_collate)
 
         #----------------------#
         #   记录eval的map曲线
@@ -506,10 +520,10 @@ if __name__ == "__main__":
                 if distributed:
                     batch_size = batch_size // ngpus_per_node
 
-                gen             = DataLoader(train_dataset, shuffle = shuffle, batch_size = batch_size, num_workers = num_workers, pin_memory=True,
-                                            drop_last = True, collate_fn = deeplab_dataset_collate, sampler=train_sampler)
-                gen_val         = DataLoader(val_dataset  , shuffle = shuffle, batch_size = batch_size, num_workers = num_workers, pin_memory=True, 
-                                            drop_last = True, collate_fn = deeplab_dataset_collate, sampler=val_sampler)
+                gen             = DataLoader(train_dataset, shuffle = False, batch_size = batch_size, num_workers = num_workers, pin_memory=True,
+                                            drop_last = True, collate_fn = deeplab_dataset_collate)
+                gen_val         = DataLoader(val_dataset  , shuffle = False, batch_size = batch_size, num_workers = num_workers, pin_memory=True, 
+                                            drop_last = True, collate_fn = deeplab_dataset_collate)
 
                 UnFreeze_flag = True
 
@@ -517,8 +531,9 @@ if __name__ == "__main__":
                 train_sampler.set_epoch(epoch)
 
             set_optimizer_lr(optimizer, lr_scheduler_func, epoch)
+            imgspre=torch.zeros(4,3,480,640)
 
-            fit_one_epoch(outM, model_train, model, loss_history, eval_callback, optimizer, epoch, 
+            fit_one_epoch(imgspre,outM, model_train, model, loss_history, eval_callback, optimizer, epoch, 
                     epoch_step, epoch_step_val, gen, gen_val, UnFreeze_Epoch, Cuda, dice_loss, focal_loss, cls_weights, num_classes, fp16, scaler, save_period, save_dir, local_rank)
 
             if distributed:

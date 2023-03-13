@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 import torch.nn.functional as F
 from nets.xception import xception
 from nets.mobilenetv2 import mobilenetv2
@@ -132,9 +133,28 @@ def fusionOutM(outM):
     [Bb,Cc,Hh,Ww]=outM[0].shape
     out1=torch.zeros(Bb,Cc,Hh,Ww)
     for i in range(len(outM)):
+        #前序随机生成
         if i%2==0:
             out1=out1.add(outM[i])
     return out1
+
+def fusionOutM_rand(outM,n,High_n):
+    [Bb,Cc,Hh,Ww]=outM[0].shape
+    out1=torch.zeros(Bb,Cc,Hh,Ww)
+    for i in range(len(outM)):
+        #前序随机生成
+        index=fusionIndex(n,High_n)
+        if i in index:
+            out1=out1.add(outM[i])
+    return out1
+
+def fusionIndex(n,High_n):
+    index=[]
+    while len(index)<n:
+        a=np.random.randint(low=0,high=High_n,size=1) 
+        if (a in index)==False:
+            index.append(a)
+    return index
 
 class DeepLab(nn.Module):
     def __init__(self, num_classes, backbone="mobilenet", pretrained=True, downsample_factor=16):
@@ -198,13 +218,13 @@ class DeepLab(nn.Module):
         #   x : 主干部分-利用ASPP结构进行加强特征提取
         #-----------------------------------------#
         #前序帧处理,outM改为了包含tensor的list
-        if len(outM)==8:#除了前三个之外的队列                    
+        if len(outM)==4:#除了前三个之外的队列                    
             low_level_features, x = self.backbone(x)
             midx=x.detach()
             outM.pop(0)
             outM.append(copy.deepcopy(midx))
             # print(outM.shape)
-            out1=fusionOutM(outM)
+            out1=fusionOutM_rand(outM,4,4)
             # outM=outM.add(x)
             x=x.add(out1)
             print(x.shape)
@@ -212,7 +232,7 @@ class DeepLab(nn.Module):
         elif len(outM)!=0:
             low_level_features, x = self.backbone(x)
             midx=x.detach()
-            out1=fusionOutM(outM)
+            out1=fusionOutM_rand(outM,4,4)
             outM.append(copy.deepcopy(midx))
             # print(outM.shape)
             x=x.add(out1)
